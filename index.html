@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to PDF Converter</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+</head>
+
+<body class="bg-gray-100">
+    <div class="max-w-3xl mx-auto p-8">
+        <h1 class="text-3xl font-bold mb-6">Image to PDF Converter</h1>
+        <input type="file" id="fileInput" multiple class="mb-4">
+        <div id="preview" class="flex flex-wrap gap-4"></div>
+        <button id="convertButton"
+            class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Convert to PDF</button>
+        <div id="output" class="mt-4"></div>
+        <div id="progressBar" class="mt-4 hidden">
+            <div id="progressBarInner" class="bg-blue-500 h-4 rounded"></div>
+        </div>
+        <div id="currentFile" class="mt-4"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
+    <script>
+        window.jsPDF = window.jspdf.jsPDF;
+
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+        async function handleFileSelect(event) {
+            const files = event.target.files;
+            const preview = document.getElementById('preview');
+
+            preview.innerHTML = '';
+
+            for (const file of files) {
+                if (file.type.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    img.classList.add('h-32', 'w-auto');
+                    img.onload = () => URL.revokeObjectURL(img.src);
+                    preview.appendChild(img);
+                }
+            }
+        }
+
+        document.getElementById('convertButton').addEventListener('click', convertToPDF);
+
+        async function convertToPDF() {
+            const files = document.getElementById('fileInput').files;
+            const doc = new jsPDF();
+            const progressBar = document.getElementById('progressBar');
+            const progressBarInner = document.getElementById('progressBarInner');
+            const currentFileElement = document.getElementById('currentFile');
+            let totalProgress = 0;
+            let downloadButtonCreated = false;
+
+            progressBar.classList.remove('hidden');
+            currentFileElement.innerHTML = '';
+
+            for (let i = 0; i < files.length; i++) {
+                if (files[i].type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        const img = new Image();
+                        img.src = e.target.result;
+                        img.onload = function () {
+                            const width = doc.internal.pageSize.getWidth();
+                            const height = doc.internal.pageSize.getHeight();
+
+                            doc.addImage(img, 'JPEG', 0, 0, width, height);
+
+                            totalProgress += 100 / files.length;
+                            progressBarInner.style.width = totalProgress + '%';
+
+                            if (i === files.length - 1 && !downloadButtonCreated) {
+                                if (document.getElementById('link-id')) {
+                                    document.getElementById('link-id').remove()
+                                }
+
+                                const url = doc.output('bloburl');
+                                const link = document.createElement('a');
+                                link.id = 'link-id';
+                                link.href = url;
+                                link.download = 'converted.pdf';
+                                link.textContent = 'Download PDF';
+                                link.classList.add('mt-4', 'block', 'bg-green-500', 'hover:bg-green-600', 'text-white', 'font-bold', 'py-2', 'px-4', 'rounded', 'text-center');
+                                document.getElementById('output').appendChild(link);
+                                progressBar.classList.add('hidden');
+                                downloadButtonCreated = true;
+                            }
+                        };
+                        currentFileElement.innerHTML = files[i].name;
+                    };
+                    reader.readAsDataURL(files[i]);
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
